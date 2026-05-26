@@ -1,0 +1,29 @@
+services:
+  homedocs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: homedocs
+    restart: unless-stopped
+    volumes:
+      - ./config:/config:ro
+      - ./output:/output
+    environment:
+      - UNRAID_SOCKET_URL=${UNRAID_SOCKET_URL:-tcp://192.168.1.104:2375}
+      - TRUENAS_SOCKET_URL=${TRUENAS_SOCKET_URL:-tcp://192.168.1.122:2375}
+      - DOMAIN=${DOMAIN:-pancakefarts.xyz}
+      - OUTPUT_DIR=/output
+      - CONFIG_DIR=/config
+      - REGENERATE_ON_START=${REGENERATE_ON_START:-true}
+      - DEBOUNCE_SECONDS=${DEBOUNCE_SECONDS:-10}
+      - REGEN_INTERVAL=${REGEN_INTERVAL:-3600}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_REPO=${GITHUB_REPO:-}
+      - GITHUB_BRANCH=${GITHUB_BRANCH:-main}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - homedocs_net
+
+networks:
+  homedocs_net:
+    driver: bridge

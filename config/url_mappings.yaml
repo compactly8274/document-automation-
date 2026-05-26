@@ -1,0 +1,35 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# url_mappings.yaml — Explicit port → public URL overrides per container.
+#
+# The auto-pattern {container_name}.pancakefarts.xyz is tried first.
+# Only add entries here when that pattern doesn't match reality
+# (e.g. non-standard subdomains, non-standard ports, or internal-only services).
+#
+# Set url: null for containers that have no public URL (DB, internal services).
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── Exceptions to the auto-pattern ───────────────────────────────────────────
+
+# Plex uses port 32400 which typically gets its own rule
+plex:
+  url: "https://plex.pancakefarts.xyz"
+
+# Internal-only services (databases, message queues, etc.)
+# Setting url: null suppresses the auto-pattern URL entirely.
+
+postgres:
+  url: null
+
+redis:
+  url: null
+
+mariadb:
+  url: null
+
+mysql:
+  url: null
+
+# ── Add your overrides below ──────────────────────────────────────────────────
+
+# my-service:
+#   url: "https://custom-subdomain.pancakefarts.xyz"
