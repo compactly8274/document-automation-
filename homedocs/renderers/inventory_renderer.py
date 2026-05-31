@@ -109,6 +109,18 @@ def render_inventory_md(
         lines.append("_No containers found._")
         lines.append("")
 
+    # Global notes section for containers that have notes
+    all_with_notes = [c for c in containers if c.notes]
+    if all_with_notes:
+        lines.append("---")
+        lines.append("")
+        lines.append("## Notes")
+        lines.append("")
+        for c in sorted(all_with_notes, key=lambda x: (CATEGORY_ORDER.index(x.category), x.name)):
+            note = _esc_md(c.notes)
+            lines.append(f"- **{_esc_md(c.name)}** ({c.category.value}): {note}")
+        lines.append("")
+
     return "\n".join(lines)
 
 

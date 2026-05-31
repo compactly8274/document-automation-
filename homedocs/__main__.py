@@ -24,11 +24,14 @@ from homedocs.models import ChangelogEvent, Host
 from homedocs.renderers.changelog_renderer import write_changelog
 from homedocs.renderers.inventory_renderer import write_inventory
 from homedocs.store.changelog_store import ChangelogStore
-from homedocs.store.descriptions_loader import merge_descriptions
+from homedocs.store.descriptions_loader import init_descriptions_file, merge_descriptions
 from homedocs.watchers.deduplicator import Deduplicator
 from homedocs.watchers.event_watcher import EventWatcher
 
 log = logging.getLogger("homedocs")
+
+# Containers we've already warned about missing from descriptions.yaml (per session).
+_warned_missing: set[str] = set()
 
 
 def setup_logging(level: str):
@@ -39,8 +42,11 @@ def setup_logging(level: str):
     )
 
 
-def do_regenerate(settings, store: ChangelogStore, push: bool = True) -> dict[Host, bool]:
-    """Collect containers, merge metadata, render docs. Returns reachability map."""
+def do_regenerate(settings, store: ChangelogStore, push: bool = True) -> tuple[dict[Host, bool], set[str]]:
+    """Collect containers, merge metadata, render docs.
+
+    Returns (reachability map, set of container names missing from descriptions.yaml).
+    """
     os.makedirs(settings.output_dir, exist_ok=True)
     reachable: dict[Host, bool] = {}
     all_containers = []
@@ -71,7 +77,7 @@ def do_regenerate(settings, store: ChangelogStore, push: bool = True) -> dict[Ho
                     log.info("Detected image change: %s %s→%s", c.name, old_tag, c.tag)
             all_containers.extend(containers)
 
-    all_containers = merge_descriptions(all_containers, settings.config_dir)
+    all_containers, missing = merge_descriptions(all_containers, settings.config_dir)
     save_current_tags(settings.output_dir, all_containers)
 
     now = datetime.now(timezone.utc)
@@ -91,7 +97,7 @@ def do_regenerate(settings, store: ChangelogStore, push: bool = True) -> dict[Ho
     if push and settings.github_token and settings.github_repo:
         publish(settings.output_dir, settings.github_token, settings.github_repo, settings.github_branch)
 
-    return reachable
+    return reachable, missing
 
 
 def cmd_regenerate(settings, args):
@@ -195,7 +201,8 @@ def cmd_daemon(settings, args):
         log.info("Skipping initial regeneration (--no-regen-on-start)")
     elif settings.regenerate_on_start:
         log.info("Running initial regeneration...")
-        do_regenerate(settings, store, push=True)
+        _, missing = do_regenerate(settings, store, push=True)
+        _warned_missing.update(missing)
 
     def shutdown(signum, frame):
         log.info("Shutdown signal received, flushing...")
@@ -218,10 +225,34 @@ def cmd_daemon(settings, args):
 
         if interval_due or event_due:
             regen_requested.clear()
-            do_regenerate(settings, store, push=True)
+            _, missing = do_regenerate(settings, store, push=True)
             last_regen = time.monotonic()
 
+            # Warn once per daemon session about containers without descriptions.yaml entries
+            new_missing = missing - _warned_missing
+            if new_missing:
+                log.warning(
+                    "New containers without descriptions.yaml entries: %s. "
+                    "Run 'python -m homedocs init-config' to scaffold them.",
+                    ", ".join(sorted(new_missing)),
+                )
+                _warned_missing.update(new_missing)
+
         stop_event.wait(timeout=5.0)
+
+
+def cmd_init_config(settings, args):
+    """Scaffold descriptions.yaml from currently running containers."""
+    all_containers = []
+    for host_cfg in settings.hosts:
+        client = make_client(host_cfg)
+        if client:
+            containers = collect_containers(client, host_cfg, settings.domain, settings.config_dir)
+            all_containers.extend(containers)
+    all_containers, _ = merge_descriptions(all_containers, settings.config_dir)
+    path = init_descriptions_file(settings.config_dir, all_containers)
+    print(f"Scaffolded descriptions.yaml at {path}")
+    print("Edit the 'notes' fields, then restart the daemon to pick up changes.")
 
 
 def main():
@@ -244,6 +275,10 @@ def main():
     # status
     sub.add_parser("status", help="Print host connection status and last regen time")
 
+    # init-config
+    p_init = sub.add_parser("init-config", help="Scaffold descriptions.yaml from running containers")
+    p_init.add_argument("--host", choices=["unraid", "truenas", "all"], default="all")
+
     args = parser.parse_args()
 
     settings = load_settings()
@@ -261,6 +296,8 @@ def main():
         cmd_log(settings, args)
     elif args.command == "status":
         cmd_status(settings, args)
+    elif args.command == "init-config":
+        cmd_init_config(settings, args)
     else:
         parser.print_help()
 
