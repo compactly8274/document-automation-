@@ -14,13 +14,32 @@ def _week_start(dt: datetime) -> datetime:
     )
 
 
+_MD_META = str.maketrans({
+    "|": "\\|",
+    "\n": " ",
+    "\r": "",
+    "`": "\\`",
+    "*": "\\*",
+    "_": "\\_",
+    "[": "\\[",
+    "]": "\\]",
+    "<": "\\<",
+    ">": "\\>",
+})
+
+
+def _esc_md(text: str) -> str:
+    """Escape markdown metacharacters for safe use in changelog lines."""
+    return text.translate(_MD_META)
+
+
 def _fmt_event(ev: ChangelogEvent) -> str:
     ts = ev.timestamp.astimezone(timezone.utc).strftime("%H:%M UTC")
     host_tag = f"**[{ev.host.value}]**" if ev.host else "**[—]**"
     source_tag = " `[manual]`" if ev.source == "manual" else ""
 
     if ev.source == "manual":
-        return f"- {ts} {host_tag}{source_tag} {ev.message}"
+        return f"- {ts} {host_tag}{source_tag} {_esc_md(ev.message or '')}"
 
     name = f"`{ev.container_name}`" if ev.container_name else ""
     stack = f" (stack: `{ev.stack_name}`)" if ev.stack_name else ""

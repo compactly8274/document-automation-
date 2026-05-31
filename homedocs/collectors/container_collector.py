@@ -46,7 +46,10 @@ def _parse_ports(container, domain: str, name: str, url_mappings: dict) -> list[
         port_str, proto = container_port_proto.split("/") if "/" in container_port_proto else (container_port_proto, "tcp")
         container_port = int(port_str)
         for binding in (host_bindings or []):
-            host_port = int(binding.get("HostPort", 0))
+            try:
+                host_port = int(binding.get("HostPort", 0))
+            except (ValueError, TypeError):
+                continue
             if not host_port:
                 continue
             url = _resolve_url(name, host_port, domain, url_mappings)

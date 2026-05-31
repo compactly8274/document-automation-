@@ -38,15 +38,34 @@ def _status_badge(status: str) -> str:
     return badges.get(status, status)
 
 
+_MD_META = str.maketrans({
+    "|": "\\|",
+    "\n": " ",
+    "\r": "",
+    "`": "\\`",
+    "*": "\\*",
+    "_": "\\_",
+    "[": "\\[",
+    "]": "\\]",
+    "<": "\\<",
+    ">": "\\>",
+})
+
+
+def _esc_md(text: str) -> str:
+    """Escape markdown metacharacters for safe use in pipe tables."""
+    return text.translate(_MD_META)
+
+
 def _table_row(c: ContainerRecord) -> str:
-    name = f"`{c.name}`"
-    image_tag = f"`{c.image}:{c.tag}`"
+    name = f"`{_esc_md(c.name)}`"
+    image_tag = f"`{_esc_md(c.image)}:{_esc_md(c.tag)}`"
     host = c.host.value.capitalize()
     ports = _fmt_ports(c.ports)
     status = _status_badge(c.status)
-    stack = f"`{c.compose_stack}`" if c.compose_stack else "—"
+    stack = f"`{_esc_md(c.compose_stack)}`" if c.compose_stack else "—"
     last_updated = _fmt_date(c.image_last_updated)
-    desc = (c.description or c.github_description or "").replace("|", "\\|").replace("\n", " ")
+    desc = _esc_md(c.description or c.github_description or "")
     return f"| {name} | {image_tag} | {host} | {ports} | {status} | {stack} | {last_updated} | {desc} |"
 
 

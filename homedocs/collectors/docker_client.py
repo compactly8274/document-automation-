@@ -20,3 +20,6 @@ def make_client(host: HostConfig) -> DockerClient | None:
     except DockerException as e:
         log.warning("Cannot reach %s (%s): %s", host.name, host.socket_url, e)
         return None
+    except Exception as e:
+        log.error("Unexpected error connecting to %s (%s): %s", host.name, host.socket_url, e)
+        return None

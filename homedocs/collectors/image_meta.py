@@ -10,8 +10,11 @@ import requests
 
 log = logging.getLogger(__name__)
 
+import threading
+
 _GITHUB_TOKEN: Optional[str] = None
 _request_counts: dict[str, int] = {}
+_request_lock = threading.Lock()
 _LIMITS = {
     "hub.docker.com": 90,
     "api.github.com": 55,
@@ -32,7 +35,8 @@ def _headers(domain: str) -> dict:
 
 
 def _budget_ok(domain: str) -> bool:
-    count = _request_counts.get(domain, 0)
+    with _request_lock:
+        count = _request_counts.get(domain, 0)
     limit = _LIMITS.get(domain, 50)
     if count >= limit:
         log.warning("API budget exhausted for %s (%d/%d), skipping lookup", domain, count, limit)
@@ -45,7 +49,8 @@ def _get(url: str, domain: str) -> Optional[dict]:
         return None
     try:
         resp = requests.get(url, headers=_headers(domain), timeout=5)
-        _request_counts[domain] = _request_counts.get(domain, 0) + 1
+        with _request_lock:
+            _request_counts[domain] = _request_counts.get(domain, 0) + 1
         if resp.status_code == 200:
             return resp.json()
         log.debug("GET %s → %d", url, resp.status_code)

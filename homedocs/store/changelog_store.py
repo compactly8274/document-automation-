@@ -4,12 +4,17 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from homedocs.models import ChangelogEvent, Host
 
 log = logging.getLogger(__name__)
+
+# Keep at most this many days of changelog events to prevent unbounded growth.
+_MAX_AGE_DAYS = 90
+# Hard cap on number of events retained.
+_MAX_EVENTS = 10_000
 
 
 def _serialize(event: ChangelogEvent) -> str:
@@ -59,6 +64,7 @@ class ChangelogStore:
         self._seen_ids: set[str] = set()
         self._events: list[ChangelogEvent] = []
         self._load()
+        self._prune()
 
     def _load(self):
         if not os.path.exists(self._path):
@@ -73,6 +79,27 @@ class ChangelogStore:
                     self._seen_ids.add(ev.id)
                     self._events.append(ev)
         log.info("Loaded %d changelog events from %s", len(self._events), self._path)
+
+    def _prune(self):
+        """Remove events older than _MAX_AGE_DAYS and enforce _MAX_EVENTS cap."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=_MAX_AGE_DAYS)
+        before = len(self._events)
+        self._events = [e for e in self._events if e.timestamp >= cutoff]
+        if len(self._events) > _MAX_EVENTS:
+            self._events = self._events[-_MAX_EVENTS:]
+        self._seen_ids = {e.id for e in self._events}
+        removed = before - len(self._events)
+        if removed > 0:
+            log.info("Pruned %d old changelog events (%d remaining)", removed, len(self._events))
+            self._rewrite()
+
+    def _rewrite(self):
+        """Rewrite the JSONL file to match pruned in-memory state."""
+        tmp_path = self._path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            for ev in self._events:
+                f.write(_serialize(ev) + "\n")
+        os.replace(tmp_path, self._path)
 
     def append(self, event: ChangelogEvent):
         with self._lock:

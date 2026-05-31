@@ -11,7 +11,6 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from homedocs import collectors
 from homedocs.collectors import image_meta
 from homedocs.collectors.container_collector import (
     collect_containers,
@@ -79,6 +78,14 @@ def do_regenerate(settings, store: ChangelogStore, push: bool = True) -> dict[Ho
     write_inventory(settings.output_dir, all_containers, reachable, now)
     write_changelog(settings.output_dir, store.load_all(), now)
 
+    # Touch healthcheck marker so Docker HEALTHCHECK stays green
+    try:
+        hc = os.path.join(settings.output_dir, ".healthcheck")
+        with open(hc, "w") as f:
+            f.write(datetime.now(timezone.utc).isoformat())
+    except OSError:
+        pass
+
     log.info("Regenerated docs: %d containers across %d host(s)", len(all_containers), sum(reachable.values()))
 
     if push and settings.github_token and settings.github_repo:
@@ -122,8 +129,11 @@ def cmd_log(settings, args):
 def cmd_status(settings, args):
     print(f"Configured hosts:")
     for h in settings.hosts:
-        client = make_client(h)
-        ok = "✓ reachable" if client else "✗ unreachable"
+        try:
+            client = make_client(h)
+            ok = "✓ reachable" if client else "✗ unreachable"
+        except Exception as e:
+            ok = f"✗ error ({e})"
         print(f"  {h.name:10s}  {h.socket_url:40s}  {ok}")
     print(f"\nOutput dir : {settings.output_dir}")
     print(f"Config dir : {settings.config_dir}")
