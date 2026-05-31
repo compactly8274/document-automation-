@@ -1,0 +1,197 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# descriptions.yaml — User-maintained metadata for the Container Inventory.
+#
+# Keys are container names exactly as shown by `docker ps --format '{{.Names}}'`.
+# All fields are optional — omitted fields fall back to auto-detected values.
+# Containers not listed here appear in the "Misc" category with no description.
+#
+# Valid categories:
+#   Media | Arr Stack | Books & Comics | Download Clients | AI & Search |
+#   Documents & Files | Infrastructure | Monitoring | Misc
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── Media ─────────────────────────────────────────────────────────────────────
+
+plex:
+  description: "Media server for movies, TV, and music"
+  category: "Media"
+  notes: "Hardware transcoding via Intel iGPU passthrough on Unraid."
+  date_first_deployed: ""
+
+jellyfin:
+  description: "Open-source media server, alternative to Plex"
+  category: "Media"
+  notes: ""
+  date_first_deployed: ""
+
+overseerr:
+  description: "Request management for Plex — users submit movie/TV requests"
+  category: "Media"
+  notes: ""
+  date_first_deployed: ""
+
+tautulli:
+  description: "Plex monitoring and statistics"
+  category: "Media"
+  notes: ""
+  date_first_deployed: ""
+
+# ── Arr Stack ─────────────────────────────────────────────────────────────────
+
+sonarr:
+  description: "Automatic TV series downloader and organizer"
+  category: "Arr Stack"
+  notes: "Connected to SABnzbd and qBittorrent. Uses /data/media/tv."
+  date_first_deployed: ""
+
+radarr:
+  description: "Automatic movie downloader and organizer"
+  category: "Arr Stack"
+  notes: "Connected to SABnzbd and qBittorrent. Uses /data/media/movies."
+  date_first_deployed: ""
+
+lidarr:
+  description: "Automatic music downloader and organizer"
+  category: "Arr Stack"
+  notes: ""
+  date_first_deployed: ""
+
+readarr:
+  description: "Automatic ebook and audiobook downloader"
+  category: "Arr Stack"
+  notes: ""
+  date_first_deployed: ""
+
+prowlarr:
+  description: "Indexer manager — central source list for all Arr apps"
+  category: "Arr Stack"
+  notes: ""
+  date_first_deployed: ""
+
+# ── Books & Comics ────────────────────────────────────────────────────────────
+
+kavita:
+  description: "Self-hosted digital library for manga, comics, and ebooks"
+  category: "Books & Comics"
+  notes: ""
+  date_first_deployed: ""
+
+komga:
+  description: "Comics and manga server"
+  category: "Books & Comics"
+  notes: ""
+  date_first_deployed: ""
+
+# ── Download Clients ──────────────────────────────────────────────────────────
+
+sabnzbd:
+  description: "Usenet download client"
+  category: "Download Clients"
+  notes: ""
+  date_first_deployed: ""
+
+qbittorrent:
+  description: "BitTorrent client with web UI"
+  category: "Download Clients"
+  notes: ""
+  date_first_deployed: ""
+
+# ── AI & Search ───────────────────────────────────────────────────────────────
+
+ollama:
+  description: "Local LLM inference server"
+  category: "AI & Search"
+  notes: "GPU passthrough enabled on Unraid. Running llama3 and mistral."
+  date_first_deployed: ""
+
+open-webui:
+  description: "Web UI for Ollama — ChatGPT-style interface for local LLMs"
+  category: "AI & Search"
+  notes: ""
+  date_first_deployed: ""
+
+# ── Documents & Files ─────────────────────────────────────────────────────────
+
+paperless-ngx:
+  description: "Document management system with OCR — scans, receipts, and paperwork"
+  category: "Documents & Files"
+  notes: ""
+  date_first_deployed: ""
+
+nextcloud:
+  description: "Self-hosted file sync and collaboration platform"
+  category: "Documents & Files"
+  notes: ""
+  date_first_deployed: ""
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+traefik:
+  description: "Reverse proxy and SSL termination for all services"
+  category: "Infrastructure"
+  notes: "Wildcard cert via Let's Encrypt DNS challenge."
+  date_first_deployed: ""
+
+nginx-proxy-manager:
+  description: "Reverse proxy with GUI — manages SSL certs and routing"
+  category: "Infrastructure"
+  notes: ""
+  date_first_deployed: ""
+
+authentik:
+  description: "Identity provider — SSO and MFA for self-hosted apps"
+  category: "Infrastructure"
+  notes: ""
+  date_first_deployed: ""
+
+vaultwarden:
+  description: "Unofficial Bitwarden-compatible password manager server"
+  category: "Infrastructure"
+  notes: ""
+  date_first_deployed: ""
+
+portainer:
+  description: "Docker management UI"
+  category: "Infrastructure"
+  notes: ""
+  date_first_deployed: ""
+
+wireguard:
+  description: "VPN server for remote access to the homelab"
+  category: "Infrastructure"
+  notes: ""
+  date_first_deployed: ""
+
+homedocs:
+  description: "This container — auto-generates Container Inventory and Changelog docs"
+  category: "Infrastructure"
+  notes: ""
+  date_first_deployed: ""
+
+# ── Monitoring ────────────────────────────────────────────────────────────────
+
+grafana:
+  description: "Metrics dashboards and alerting"
+  category: "Monitoring"
+  notes: ""
+  date_first_deployed: ""
+
+prometheus:
+  description: "Metrics collection and storage backend for Grafana"
+  category: "Monitoring"
+  notes: ""
+  date_first_deployed: ""
+
+uptime-kuma:
+  description: "Uptime monitoring with status page and alerts"
+  category: "Monitoring"
+  notes: ""
+  date_first_deployed: ""
+
+# ── Add new containers below, or remove entries that don't apply ──────────────
+
+# my-container:
+#   description: "What it does in my setup"
+#   category: "Misc"
+#   notes: "Any quirks or dependencies"
+#   date_first_deployed: "YYYY-MM-DD"
