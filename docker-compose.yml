@@ -22,6 +22,25 @@ services:
     networks:
       - homedocs_net
 
+  web:
+    image: ghcr.io/compactly8274/document-automation:latest
+    container_name: homedocs-web
+    restart: unless-stopped
+    depends_on:
+      - homedocs
+    command: ["uvicorn", "homedocs.web.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    volumes:
+      - ./config:/config:rw        # rw so form saves can write
+      - ./output:/output:ro        # ro — only the daemon writes here
+    environment:
+      - OUTPUT_DIR=/output
+      - CONFIG_DIR=/config
+      - HOMEDOCS_CONTAINER=homedocs
+    ports:
+      - "${WEB_PORT:-27531}:8080"
+    networks:
+      - homedocs_net
+
 networks:
   homedocs_net:
     driver: bridge

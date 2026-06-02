@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}homedocs{% endblock %}
+{% block content %}
+<h1>Homelab Documentation</h1>
+
+{% if summary %}
+<div class="cards">
+    <a class="card" href="/inventory">
+        <h2>Inventory</h2>
+        <div class="big">{{ summary.total }}</div>
+        <div class="sub">containers · {{ summary.running }} running</div>
+    </a>
+    <a class="card" href="/changelog">
+        <h2>Changelog</h2>
+        <div class="big">📜</div>
+        <div class="sub">event log</div>
+    </a>
+    <a class="card" href="/config/descriptions">
+        <h2>Descriptions</h2>
+        <div class="big">📝</div>
+        <div class="sub">edit descriptions.yaml</div>
+    </a>
+    <a class="card" href="/config/urls">
+        <h2>URLs</h2>
+        <div class="big">🔗</div>
+        <div class="sub">edit url_mappings.yaml</div>
+    </a>
+</div>
+
+<h2>Status</h2>
+<ul class="status">
+    <li>Last regen: <strong>{{ last_regen }}</strong></li>
+    <li>Unraid: {% if summary.unraid_reachable %}<span class="ok">reachable</span>{% else %}<span class="bad">unreachable</span>{% endif %}</li>
+    <li>TrueNAS: {% if summary.truenas_reachable %}<span class="ok">reachable</span>{% else %}<span class="bad">unreachable</span>{% endif %}</li>
+</ul>
+
+{% if summary.by_category %}
+<h2>By category</h2>
+<table class="kv">
+    {% for cat, n in summary.by_category.items() %}
+    <tr><td>{{ cat }}</td><td>{{ n }}</td></tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{% else %}
+<p class="empty">No inventory generated yet. Start the <code>homedocs</code> container and wait for the first regen (or trigger one via <code>./log.sh "..."</code>).</p>
+{% endif %}
+{% endblock %}

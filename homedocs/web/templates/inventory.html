@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Inventory · homedocs{% endblock %}
+{% block content %}
+<h1>Container Inventory</h1>
+<p class="meta">Generated: {{ generated_at }}</p>
+
+{% if reachable_warnings %}
+<div class="flash flash-warning">
+    {% for w in reachable_warnings %}<div>{{ w }}</div>{% endfor %}
+</div>
+{% endif %}
+
+{% if empty %}
+<p class="empty">No inventory generated yet.</p>
+{% else %}
+    {% for category, items in groups.items() %}
+    <section class="category">
+        <h2>{{ category }} <span class="count">({{ items|length }})</span></h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Container</th>
+                    <th>Image:Tag</th>
+                    <th>Host</th>
+                    <th>Ports / URLs</th>
+                    <th>Status</th>
+                    <th>Stack</th>
+                    <th>Updated</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in items %}
+                <tr>
+                    <td><code>{{ c.name }}</code></td>
+                    <td><code>{{ c.image }}:{{ c.tag }}</code></td>
+                    <td>{{ c.host|capitalize }}</td>
+                    <td>
+                        {% if c.ports %}
+                            {% for p in c.ports %}
+                                {% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener">{{ p.host_port }}</a>{% else %}{{ p.host_port }}{% endif %}{% if not loop.last %} {% endif %}
+                            {% endfor %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ status_badge(c.status) }}</td>
+                    <td>{% if c.compose_stack %}<code>{{ c.compose_stack }}</code>{% else %}—{% endif %}</td>
+                    <td>{{ fmt_date(c.image_last_updated) }}</td>
+                    <td>{{ c.description or c.github_description or "" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% for c in items %}
+            {% if c.notes %}
+            <details class="note">
+                <summary>{{ c.name }}</summary>
+                <p>{{ c.notes }}</p>
+            </details>
+            {% endif %}
+        {% endfor %}
+    </section>
+    {% endfor %}
+{% endif %}
+{% endblock %}

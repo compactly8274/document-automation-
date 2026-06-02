@@ -47,6 +47,39 @@ Docs are written to `./output/` on first start and kept current as your stack ch
 
 ---
 
+## Web UI
+
+A small FastAPI app is included for browsing the generated docs and editing
+`descriptions.yaml` / `url_mappings.yaml` from a browser. It runs as a second
+service in the same compose stack.
+
+```bash
+# Default URL: http://localhost:27531 (override with WEB_PORT in .env)
+open http://localhost:27531
+```
+
+Pages:
+
+- `/` — summary, host reachability, category counts
+- `/inventory` — full container inventory, grouped by category
+- `/changelog` — Markdown-rendered changelog
+- `/config/descriptions` — edit `descriptions.yaml` (form per container)
+- `/config/urls` — edit `url_mappings.yaml` (form per container)
+
+Saving a form rewrites the YAML atomically and triggers a regenerate on the
+`homedocs` container via `docker exec` — the same path `log.sh` uses.
+
+**Caveats:**
+
+- The web service is intended for a trusted network. There is no authentication.
+- Form-based edits do not preserve comments in the existing YAML files.
+- Concurrent edits to the same file are last-write-wins (no locking).
+- The web container uses the same image as the daemon. Building the image
+  locally (`docker compose build`) installs `docker-ce-cli` (~100 MB) so it can
+  run `docker exec` against the daemon.
+
+---
+
 ## Docker Image
 
 Pre-built image published to GitHub Container Registry on every push to `main`:

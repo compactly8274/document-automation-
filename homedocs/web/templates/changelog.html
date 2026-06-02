@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Changelog · homedocs{% endblock %}
+{% block content %}
+<h1>Homelab Changelog</h1>
+<p class="meta">Generated: {{ generated_at }}</p>
+
+{% if empty %}
+<p class="empty">No changelog generated yet.</p>
+{% else %}
+<article class="markdown">
+    {{ body|safe }}
+</article>
+{% endif %}
+{% endblock %}

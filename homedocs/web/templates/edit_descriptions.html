@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Descriptions · homedocs{% endblock %}
+{% block content %}
+<h1>descriptions.yaml</h1>
+<p class="meta">
+    Edit container metadata. Saving the form rewrites the file atomically and
+    triggers a regenerate. <strong>Comments in the existing file are not preserved.</strong>
+</p>
+
+{% if error %}
+<div class="flash flash-error">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="/config/descriptions">
+    <table class="edit">
+        <thead>
+            <tr>
+                <th>Container</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Notes</th>
+                <th>Deployed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>
+                    <code class="name">{{ r.name }}</code>
+                    <input type="hidden" name="name" value="{{ r.name }}">
+                </td>
+                <td>
+                    <input type="text" name="description__{{ r.name }}" value="{{ r.description }}" maxlength="200">
+                </td>
+                <td>
+                    <select name="category__{{ r.name }}">
+                        {% for c in categories %}
+                        <option value="{{ c }}" {% if c == r.category %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <textarea name="notes__{{ r.name }}" rows="2">{{ r.notes }}</textarea>
+                </td>
+                <td>
+                    <input type="text" name="date__{{ r.name }}" value="{{ r.date_first_deployed }}" placeholder="YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p>
+        <button type="submit">Save descriptions.yaml</button>
+        <a href="/config/descriptions" class="btn-secondary">Reload</a>
+    </p>
+</form>
+{% endblock %}
