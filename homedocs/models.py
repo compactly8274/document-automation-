@@ -63,6 +63,10 @@ class ContainerRecord:
     github_description: Optional[str]
     container_id: str
 
+    # Config fields used for change detection
+    bind_mounts: list[str] = field(default_factory=list)  # ["host_path:container_path"]
+    env_hash: Optional[str] = None  # SHA256[:16] of all env vars (never stored in output)
+
     # User-provided (merged from descriptions.yaml)
     description: Optional[str] = None
     category: Category = Category.MISC
@@ -77,11 +81,12 @@ class ChangelogEvent:
     host: Optional[Host]
     container_name: Optional[str]
     stack_name: Optional[str]
-    event_type: str  # created | destroyed | updated | pulled | manual
+    event_type: str  # created | destroyed | updated | config_changed | status_changed | manual
     old_image_tag: Optional[str]
     new_image_tag: Optional[str]
     message: Optional[str]
     source: str  # "docker" | "manual"
+    details: list[str] = field(default_factory=list)  # sub-items for config changes
 
 
 @dataclass

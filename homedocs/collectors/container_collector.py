@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -12,6 +13,12 @@ from homedocs.models import Category, ContainerRecord, Host, HostConfig, PortMap
 from homedocs.store.descriptions_loader import load_url_mappings
 
 log = logging.getLogger(__name__)
+
+# Env var key substrings that indicate secrets — never stored or displayed
+_SECRET_SUBSTRINGS = frozenset([
+    "password", "passwd", "token", "secret", "key", "auth",
+    "credential", "cert", "private", "api_key", "apikey",
+])
 
 
 def _split_image_tag(image_ref: str) -> tuple[str, str]:
@@ -57,6 +64,25 @@ def _parse_ports(container, domain: str, name: str, url_mappings: dict) -> list[
                 url=url,
             ))
     return ports
+
+
+def _extract_bind_mounts(attrs: dict) -> list[str]:
+    mounts = []
+    for m in attrs.get("Mounts", []):
+        if m.get("Type") == "bind":
+            src = m.get("Source", "")
+            dst = m.get("Destination", "")
+            if src and dst:
+                mounts.append(f"{src}:{dst}")
+    return sorted(mounts)
+
+
+def _extract_env_hash(attrs: dict) -> Optional[str]:
+    env_list = attrs.get("Config", {}).get("Env") or []
+    if not env_list:
+        return None
+    combined = "|".join(sorted(env_list))
+    return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
 def collect_containers(
@@ -118,6 +144,8 @@ def collect_containers(
             image_last_updated=last_updated,
             github_description=github_desc,
             container_id=c.short_id,
+            bind_mounts=_extract_bind_mounts(c.attrs),
+            env_hash=_extract_env_hash(c.attrs),
         ))
 
     log.info("Collected %d containers from %s", len(records), host_config.name)
@@ -137,7 +165,7 @@ def load_snapshot(output_dir: str) -> list[dict]:
 
 
 def save_snapshot(output_dir: str, containers: list[ContainerRecord]):
-    """Persist the minimal container state needed for diffing."""
+    """Persist container state needed for diffing (image, config, ports, volumes, env)."""
     path = os.path.join(output_dir, ".snapshot.json")
     data = [
         {
@@ -148,6 +176,12 @@ def save_snapshot(output_dir: str, containers: list[ContainerRecord]):
             "status": c.status,
             "restart_policy": c.restart_policy,
             "compose_stack": c.compose_stack,
+            "networks": sorted(c.networks),
+            "port_bindings": sorted(
+                f"{p.host_port}:{p.container_port}/{p.protocol}" for p in c.ports
+            ),
+            "bind_mounts": c.bind_mounts,
+            "env_hash": c.env_hash,
         }
         for c in containers
     ]

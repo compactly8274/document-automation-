@@ -15,9 +15,16 @@ def _week_start(dt: datetime) -> datetime:
     )
 
 
+def _fmt_details(details: list[str], indent: str = "  ") -> str:
+    if not details:
+        return ""
+    return "\n" + "\n".join(f"{indent}- {d}" for d in details)
+
+
 def _fmt_single_event(ev: ChangelogEvent) -> str:
     ts = ev.timestamp.astimezone(timezone.utc).strftime("%H:%M UTC")
     host_tag = f"**[{ev.host.value}]**" if ev.host else "**[—]**"
+    details = _fmt_details(ev.details)
 
     if ev.source == "manual":
         return f"- {ts} {host_tag} `[manual]` {ev.message}"
@@ -25,19 +32,22 @@ def _fmt_single_event(ev: ChangelogEvent) -> str:
     name = f"`{ev.container_name}`" if ev.container_name else ""
 
     if ev.event_type == "updated" and ev.old_image_tag and ev.new_image_tag:
-        return f"- {ts} {host_tag} {name} `{ev.old_image_tag}` → `{ev.new_image_tag}`"
+        line = f"- {ts} {host_tag} {name} `{ev.old_image_tag}` → `{ev.new_image_tag}`"
+        return line + details
     if ev.event_type == "updated":
-        return f"- {ts} {host_tag} {name} redeployed"
+        return f"- {ts} {host_tag} {name} redeployed{details}"
     if ev.event_type == "created":
         tag = f" (`{ev.new_image_tag}`)" if ev.new_image_tag else ""
-        return f"- {ts} {host_tag} {name} added{tag}"
+        return f"- {ts} {host_tag} {name} added{tag}{details}"
     if ev.event_type == "destroyed":
-        return f"- {ts} {host_tag} {name} removed"
+        return f"- {ts} {host_tag} {name} removed{details}"
+    if ev.event_type == "config_changed":
+        return f"- {ts} {host_tag} {name} config changed{details}"
     if ev.event_type == "status_changed" and ev.message:
         return f"- {ts} {host_tag} {name} {ev.message}"
 
     msg = ev.message or ev.event_type
-    return f"- {ts} {host_tag} {name} {msg}"
+    return f"- {ts} {host_tag} {name} {msg}{details}"
 
 
 def _fmt_stack_group(stack: str, host: Host, events: list[ChangelogEvent]) -> str:
@@ -49,6 +59,8 @@ def _fmt_stack_group(stack: str, host: Host, events: list[ChangelogEvent]) -> st
         name = f"`{ev.container_name}`"
         if ev.old_image_tag and ev.new_image_tag:
             lines.append(f"  - {name} `{ev.old_image_tag}` → `{ev.new_image_tag}`")
+        elif ev.event_type == "config_changed":
+            lines.append(f"  - {name} config changed")
         elif ev.event_type == "created":
             tag = f" (`{ev.new_image_tag}`)" if ev.new_image_tag else ""
             lines.append(f"  - {name} added{tag}")
@@ -56,6 +68,8 @@ def _fmt_stack_group(stack: str, host: Host, events: list[ChangelogEvent]) -> st
             lines.append(f"  - {name} removed")
         else:
             lines.append(f"  - {name} updated")
+        for detail in ev.details:
+            lines.append(f"    - {detail}")
     return "\n".join(lines)
 
 
@@ -68,7 +82,8 @@ def _group_and_render_day(events: list[ChangelogEvent]) -> list[str]:
     """
     STACK_WINDOW_SECONDS = 300
 
-    # Separate manual/status events (always individual) from groupable ones
+    # status_changed and manual entries are always individual
+    # Everything else (image updates, config changes, added, removed) can be stack-grouped
     individual = [e for e in events if e.source == "manual" or e.event_type == "status_changed"]
     groupable = [e for e in events if e.source != "manual" and e.event_type != "status_changed"]
 

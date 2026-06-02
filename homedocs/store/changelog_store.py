@@ -24,6 +24,7 @@ def _serialize(event: ChangelogEvent) -> str:
         "new_image_tag": event.new_image_tag,
         "message": event.message,
         "source": event.source,
+        "details": event.details or [],
     }
     return json.dumps(d)
 
@@ -46,6 +47,7 @@ def _deserialize(line: str) -> Optional[ChangelogEvent]:
             new_image_tag=d.get("new_image_tag"),
             message=d.get("message"),
             source=d.get("source", "docker"),
+            details=d.get("details", []),  # backward-compat: older events have no details
         )
     except Exception as e:
         log.warning("Skipping malformed changelog line: %s — %s", line[:80], e)
