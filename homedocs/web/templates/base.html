@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}homedocs{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" href="/">🏠 homedocs</a>
+            <nav class="nav">
+                <a href="/inventory">Inventory</a>
+                <a href="/changelog">Changelog</a>
+                <a href="/config/descriptions">Descriptions</a>
+                <a href="/config/urls">URLs</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% if flash %}
+            <div class="flash flash-{{ flash.level }}">{{ flash.message }}</div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

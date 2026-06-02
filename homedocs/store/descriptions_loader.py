@@ -115,6 +115,58 @@ def merge_descriptions(containers: list[ContainerRecord], config_dir: str) -> tu
     return containers, missing
 
 
+def _atomic_write_yaml(path: str, data) -> None:
+    """Write YAML to *path* via a sibling temp file + os.replace.
+
+    Preserves dict insertion order and supports None values. Does not preserve
+    comments — the web UI round-trips data only.
+    """
+    import tempfile
+
+    directory = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            yaml.safe_dump(
+                data,
+                f,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+            )
+        os.replace(tmp_path, path)
+    except Exception:
+        # Best-effort cleanup of the temp file on failure
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def save_descriptions(config_dir: str, data: dict[str, dict]) -> None:
+    """Write descriptions.yaml atomically. Caller is responsible for validation."""
+    path = os.path.join(config_dir, "descriptions.yaml")
+    # Drop keys whose entry is fully empty so the file stays tidy
+    cleaned: dict[str, dict] = {}
+    for name, entry in data.items():
+        if not isinstance(entry, dict):
+            continue
+        cleaned[name] = {
+            "description": entry.get("description") or None,
+            "category": entry.get("category") or "Misc",
+            "notes": entry.get("notes") or None,
+            "date_first_deployed": entry.get("date_first_deployed") or None,
+        }
+    _atomic_write_yaml(path, cleaned)
+
+
+def save_url_mappings(config_dir: str, data: dict) -> None:
+    """Write url_mappings.yaml atomically. None values mean 'internal only'."""
+    path = os.path.join(config_dir, "url_mappings.yaml")
+    _atomic_write_yaml(path, data)
+
+
 def init_descriptions_file(config_dir: str, containers: list[ContainerRecord]) -> str:
     """Scaffold (or update) descriptions.yaml from the current container list.
 

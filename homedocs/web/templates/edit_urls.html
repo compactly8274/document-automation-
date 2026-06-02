@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}URLs · homedocs{% endblock %}
+{% block content %}
+<h1>url_mappings.yaml</h1>
+<p class="meta">
+    Override the auto-generated URL (<code>{container}.{DOMAIN}</code>) per container, or mark a service as internal-only.
+    Leave a row's URL empty to remove its override. Type <code>null</code> to mark a container as internal-only
+    (no URL is shown in the inventory). Saving triggers a regenerate.
+</p>
+
+{% if error %}
+<div class="flash flash-error">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="/config/urls">
+    <table class="edit">
+        <thead>
+            <tr>
+                <th>Container</th>
+                <th>URL <span class="hint">(empty = remove, "null" = internal only)</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>
+                    <code class="name">{{ r.name }}</code>
+                    <input type="hidden" name="name" value="{{ r.name }}">
+                    {% if r.is_null %}<span class="tag">null</span>{% endif %}
+                </td>
+                <td>
+                    <input type="text" name="url__{{ r.name }}" value="{{ r.url }}" placeholder="https://... or null or empty">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p>
+        <button type="submit">Save url_mappings.yaml</button>
+        <a href="/config/urls" class="btn-secondary">Reload</a>
+    </p>
+</form>
+{% endblock %}
