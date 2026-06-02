@@ -104,9 +104,9 @@ All settings are environment variables. Set them in `.env` or directly in `docke
 | `REGENERATE_ON_START` | `true` | Rebuild docs immediately on container start |
 | `DEBOUNCE_SECONDS` | `10` | Wait this long after a Docker event before regenerating |
 | `REGEN_INTERVAL` | `3600` | Unconditional full regeneration interval (seconds) |
-| `GITHUB_TOKEN` | _(unset)_ | Personal access token for auto-pushing docs to a GitHub repo |
+| `GITHUB_TOKEN` | _(unset)_ | Fine-grained PAT (Contents: Read+Write) for auto-pushing docs. See [Auto-push to GitHub](#auto-push-to-github). |
 | `GITHUB_REPO` | _(unset)_ | GitHub repo to push docs to, e.g. `yourname/homelab-docs` |
-| `GITHUB_BRANCH` | `main` | Branch to push to |
+| `GITHUB_BRANCH` | `main` | Branch to push to. Recommend `docs` on first push; see [Auto-push to GitHub](#auto-push-to-github). |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR` |
 
 ---
@@ -190,14 +190,54 @@ Reverse-chronological event log grouped by week. Docker events (creates, destroy
 
 ## Auto-push to GitHub
 
-Set `GITHUB_TOKEN`, `GITHUB_REPO`, and optionally `GITHUB_BRANCH` to have docs committed and pushed after each regeneration:
+Set `GITHUB_TOKEN`, `GITHUB_REPO`, and optionally `GITHUB_BRANCH` to have docs committed and pushed after each regeneration. The bot only needs to read the current state of `output/` and write the updated `inventory.md`, `inventory.json`, and `changelog.md`, so a fine-grained PAT scoped to the single docs repo is the right tool.
+
+### 1. Create a fine-grained PAT
+
+GitHub → avatar → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
+
+| Field | Value |
+|-------|-------|
+| Token name | e.g. `homedocs-push` |
+| Expiration | 90 days (max 1 year — do **not** set "No expiration") |
+| Resource owner | your account |
+| Repository access | **Only select repositories** → pick the docs repo |
+| Repository permissions → **Contents** | **Read and Write** |
+
+Generate, then copy the token. It starts with `github_pat_...`.
+
+> **Why fine-grained?** It only has access to the one repo you selected, expires automatically, and the blast radius if it leaks is small. Classic PATs (`ghp_...`) work too, but grant broader access.
+
+### 2. Configure `.env`
 
 ```bash
 # .env
-GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+GITHUB_TOKEN=github_pat_xxxxxxxxxxxxxxxxxxxx
 GITHUB_REPO=yourname/homelab-docs
-GITHUB_BRANCH=main
+# GITHUB_BRANCH=docs   # see "Branch choice" below — don't push to main on first run
 ```
+
+### 3. Branch choice — read this before the first push
+
+On the first regeneration with `GITHUB_TOKEN` + `GITHUB_REPO` set, the daemon `git init`s `/output`, commits the current `inventory.md` / `inventory.json` / `changelog.md`, and **force-pushes them to the configured branch**. If you point it at `main` on a repo that already has content, the homedocs output will replace it.
+
+Pick one of:
+
+- **Best — push to a non-main branch** (e.g. `docs`). Set `GITHUB_BRANCH=docs` in `.env`, browse the rendered output on the `docs` branch in GitHub, and merge into `main` yourself when you're happy with it. The first push creates the branch.
+- **Push to a brand-new empty repo** on `main`. Safe if the repo has no other content.
+- **Push to a populated `main`.** Possible, but you'll be overwriting prior content. Back up first.
+
+### 4. Restart and verify
+
+```bash
+docker compose up -d
+docker logs homedocs --tail 30 | grep -iE 'github|push|publish'
+# Expected: a single "Pushed N files to owner/repo@branch" line per regen
+```
+
+A `403` in the logs almost always means the token doesn't have Contents: Write on the target repo, or the repo name (`GITHUB_REPO`) doesn't match. A `404` means the repo or branch doesn't exist / the token can't see it.
+
+> **Never commit the token.** `.env` is already in `.gitignore`. If you ever need to rotate, regenerate from GitHub, update `.env`, and `docker compose up -d` to pick up the new value.
 
 The output directory is initialized as a git repo on first run. Only `inventory.md`, `inventory.json`, and `changelog.md` are committed — internal state files are excluded via `.gitignore`.
 
