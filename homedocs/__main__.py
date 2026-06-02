@@ -15,13 +15,14 @@ from homedocs import collectors, web as web_module
 from homedocs.collectors import image_meta
 from homedocs.collectors.container_collector import (
     collect_containers,
-    load_previous_tags,
-    save_current_tags,
+    load_snapshot,
+    save_snapshot,
 )
+from homedocs.differ import diff_snapshots, diffs_to_events
 from homedocs.collectors.docker_client import make_client
 from homedocs.config import load_settings
 from homedocs.git_publisher import publish
-from homedocs.models import ChangelogEvent, Host
+from homedocs.models import ChangelogEvent, Host  # ChangelogEvent used by cmd_log
 from homedocs.renderers.changelog_renderer import write_changelog
 from homedocs.renderers.inventory_renderer import write_inventory
 from homedocs.store.changelog_store import ChangelogStore
@@ -41,45 +42,49 @@ def setup_logging(level: str):
 
 
 def do_regenerate(settings, store: ChangelogStore, push: bool = True) -> dict[Host, bool]:
-    """Collect containers, merge metadata, render docs. Returns reachability map."""
+    """Collect containers, diff against previous snapshot, render docs."""
     os.makedirs(settings.output_dir, exist_ok=True)
     reachable: dict[Host, bool] = {}
     all_containers = []
-    prev_tags = load_previous_tags(settings.output_dir)
 
     for host_cfg in settings.hosts:
         client = make_client(host_cfg)
         reachable[host_cfg.label] = client is not None
         if client:
             containers = collect_containers(client, host_cfg, settings.domain, settings.config_dir)
-            # Detect image tag changes vs previous run
-            for c in containers:
-                old_tag = prev_tags.get(c.name)
-                if old_tag and old_tag != c.tag:
-                    ev = ChangelogEvent(
-                        id=str(uuid.uuid4()),
-                        timestamp=datetime.now(timezone.utc),
-                        host=c.host,
-                        container_name=c.name,
-                        stack_name=c.compose_stack,
-                        event_type="updated",
-                        old_image_tag=old_tag,
-                        new_image_tag=c.tag,
-                        message=None,
-                        source="docker",
-                    )
-                    store.append(ev)
-                    log.info("Detected image change: %s %s→%s", c.name, old_tag, c.tag)
             all_containers.extend(containers)
 
     all_containers = merge_descriptions(all_containers, settings.config_dir)
-    save_current_tags(settings.output_dir, all_containers)
+
+    # Diff against previous snapshot to generate precise changelog entries.
+    # On first run (no snapshot) we establish the baseline silently.
+    prev_snapshot = load_snapshot(settings.output_dir)
+    if prev_snapshot:
+        diffs = diff_snapshots(prev_snapshot, all_containers)
+        if diffs:
+            now = datetime.now(timezone.utc)
+            new_events = diffs_to_events(diffs, now)
+            for ev in new_events:
+                store.append(ev)
+                log.info(
+                    "Change detected: %s %s on %s%s",
+                    ev.event_type,
+                    ev.container_name,
+                    ev.host.value if ev.host else "?",
+                    f" ({ev.old_image_tag}→{ev.new_image_tag})" if ev.old_image_tag else "",
+                )
+
+    save_snapshot(settings.output_dir, all_containers)
 
     now = datetime.now(timezone.utc)
     write_inventory(settings.output_dir, all_containers, reachable, now)
     write_changelog(settings.output_dir, store.load_all(), now)
 
-    log.info("Regenerated docs: %d containers across %d host(s)", len(all_containers), sum(reachable.values()))
+    log.info(
+        "Regenerated docs: %d containers across %d host(s)",
+        len(all_containers),
+        sum(reachable.values()),
+    )
 
     if push and settings.github_token and settings.github_repo:
         publish(settings.output_dir, settings.github_token, settings.github_repo, settings.github_branch)

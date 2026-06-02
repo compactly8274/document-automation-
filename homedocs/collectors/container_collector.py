@@ -124,19 +124,32 @@ def collect_containers(
     return records
 
 
-def load_previous_tags(output_dir: str) -> dict[str, str]:
-    path = os.path.join(output_dir, ".last_known_tags.json")
+def load_snapshot(output_dir: str) -> list[dict]:
+    """Load the previous container state snapshot. Returns [] on first run."""
+    path = os.path.join(output_dir, ".snapshot.json")
     if not os.path.exists(path):
-        return {}
+        return []
     try:
         with open(path, "r") as f:
             return json.load(f)
     except Exception:
-        return {}
+        return []
 
 
-def save_current_tags(output_dir: str, containers: list[ContainerRecord]):
-    path = os.path.join(output_dir, ".last_known_tags.json")
-    tags = {c.name: c.tag for c in containers}
+def save_snapshot(output_dir: str, containers: list[ContainerRecord]):
+    """Persist the minimal container state needed for diffing."""
+    path = os.path.join(output_dir, ".snapshot.json")
+    data = [
+        {
+            "name": c.name,
+            "image": c.image,
+            "tag": c.tag,
+            "host": c.host.value,
+            "status": c.status,
+            "restart_policy": c.restart_policy,
+            "compose_stack": c.compose_stack,
+        }
+        for c in containers
+    ]
     with open(path, "w") as f:
-        json.dump(tags, f, indent=2)
+        json.dump(data, f, indent=2)
