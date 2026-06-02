@@ -11,7 +11,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from homedocs import collectors
+from homedocs import collectors, web as web_module
 from homedocs.collectors import image_meta
 from homedocs.collectors.container_collector import (
     collect_containers,
@@ -180,6 +180,20 @@ def cmd_daemon(settings, args):
         )
         w.start()
         watchers.append(w)
+
+    # Configure and start the web UI
+    web_module._output_dir = settings.output_dir
+    web_module._hosts = settings.hosts
+    web_module._regen_callback = lambda: do_regenerate(settings, store, push=True)
+    web_port = int(os.environ.get("WEB_PORT", "8080"))
+    web_thread = threading.Thread(
+        target=web_module.start_server,
+        kwargs={"port": web_port},
+        name="web-server",
+        daemon=True,
+    )
+    web_thread.start()
+    log.info("Web UI available at http://0.0.0.0:%d", web_port)
 
     if getattr(args, "no_regen_on_start", False):
         log.info("Skipping initial regeneration (--no-regen-on-start)")

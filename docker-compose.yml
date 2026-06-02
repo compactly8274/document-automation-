@@ -3,6 +3,8 @@ services:
     image: ghcr.io/compactly8274/document-automation:latest
     container_name: homedocs
     restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
     volumes:
       - ./config:/config:ro
       - ./output:/output
@@ -25,6 +27,7 @@ services:
       - GITHUB_REPO=${GITHUB_REPO:-}
       - GITHUB_BRANCH=${GITHUB_BRANCH:-main}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WEB_PORT=8080
     networks:
       - homedocs_net
 
