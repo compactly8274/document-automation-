@@ -170,9 +170,17 @@ The output directory is initialized as a git repo on first run. Only `inventory.
 
 ---
 
-## Socket Proxy Setup
+## Docker Socket Access
 
-This stack connects to your hosts over TCP — it does **not** mount `/var/run/docker.sock` directly. Each host needs a [Tecnativa docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) with at minimum:
+homedocs makes **outbound** connections to Docker — it exposes no ports of its own.
+
+### Local host (Unraid)
+
+The default compose file mounts `/var/run/docker.sock` read-only, so no socket proxy is needed for the host the stack runs on. `UNRAID_SOCKET_URL` defaults to `unix:///var/run/docker.sock`.
+
+### Remote host (TrueNAS)
+
+Set up [Tecnativa docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) on TrueNAS with at minimum:
 
 ```yaml
 environment:
@@ -181,7 +189,15 @@ environment:
   - EVENTS=1
 ```
 
-The proxy should be accessible at the IP and port configured in `UNRAID_SOCKET_URL` / `TRUENAS_SOCKET_URL`.
+The proxy must be accessible at the IP and port set in `TRUENAS_SOCKET_URL` (default `tcp://192.168.1.122:2375`).
+
+### Using a socket proxy for both hosts
+
+If you'd rather not mount the local socket, run a socket proxy on Unraid too and set:
+
+```bash
+UNRAID_SOCKET_URL=tcp://192.168.1.104:2375
+```
 
 ---
 

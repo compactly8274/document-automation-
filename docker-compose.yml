@@ -6,8 +6,14 @@ services:
     volumes:
       - ./config:/config:ro
       - ./output:/output
+      # Local Docker socket — used for whichever host this stack runs on.
+      # On Unraid this gives direct access without needing a socket proxy.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - UNRAID_SOCKET_URL=${UNRAID_SOCKET_URL:-tcp://192.168.1.104:2375}
+      # UNRAID: use the mounted local socket since this stack runs on Unraid.
+      # Change to tcp://192.168.1.104:2375 if you prefer the socket proxy instead.
+      - UNRAID_SOCKET_URL=${UNRAID_SOCKET_URL:-unix:///var/run/docker.sock}
+      # TRUENAS: TCP via Tecnativa docker-socket-proxy (CONTAINERS=1 IMAGES=1 EVENTS=1)
       - TRUENAS_SOCKET_URL=${TRUENAS_SOCKET_URL:-tcp://192.168.1.122:2375}
       - DOMAIN=${DOMAIN:-pancakefarts.xyz}
       - OUTPUT_DIR=/output
