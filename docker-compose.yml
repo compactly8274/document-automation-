@@ -1,8 +1,6 @@
 services:
   homedocs:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/compactly8274/document-automation:latest
     container_name: homedocs
     restart: unless-stopped
     volumes:
