@@ -1,7 +1,7 @@
 services:
   homedocs:
     # To use the pre-built image from GHCR instead of building locally:
-    #   image: ghcr.io/compactly8274/document-automation-:latest
+    #   image: ghcr.io/compactly8274/document-automation:latest
     build:
       context: .
       dockerfile: Dockerfile
